@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>String Art Multiplication Table Canvas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen p-4">
+<div class="max-w-3xl mx-auto">
+  <h1 class="text-xl font-bold text-center mb-2 text-blue-400">String Art — Multiplication Table</h1>
+  <p class="text-center text-gray-500 text-xs mb-4">Connect point n to point n×m around a circle. m=3 → cardioid!</p>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+    <div>
+      <label for="nPts" class="block text-xs text-gray-400 mb-1">Points N: <span id="nVal">200</span></label>
+      <input type="range" id="nPts" min="60" max="360" step="10" value="200" class="w-full accent-blue-500" aria-label="Number of points">
+    </div>
+    <div>
+      <label for="mMult" class="block text-xs text-gray-400 mb-1">Multiplier m: <span id="mVal">3</span></label>
+      <input type="range" id="mMult" min="2" max="99" step="1" value="3" class="w-full accent-blue-500" aria-label="Multiplier">
+    </div>
+    <div>
+      <label for="lineOpacity" class="block text-xs text-gray-400 mb-1">Opacity: <span id="opVal">0.3</span></label>
+      <input type="range" id="lineOpacity" min="0.05" max="1" step="0.05" value="0.3" class="w-full accent-blue-500" aria-label="Line opacity">
+    </div>
+    <div>
+      <label for="colorHue" class="block text-xs text-gray-400 mb-1">Hue: <span id="hueVal">200</span></label>
+      <input type="range" id="colorHue" min="0" max="360" value="200" class="w-full accent-blue-500" aria-label="Color hue">
+    </div>
+  </div>
+
+  <div class="flex gap-2 justify-center mb-4 flex-wrap">
+    <button onclick="setPreset(3)" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-xs">m=3 (Cardioid)</button>
+    <button onclick="setPreset(51)" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-xs">m=51</button>
+    <button onclick="setPreset(2)" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-xs">m=2 (Nephroid)</button>
+    <button onclick="setPreset(29)" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-xs">m=29</button>
+    <button onclick="startAnim()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs" id="animBtn">▶ Animate m</button>
+  </div>
+
+  <canvas id="canvas" class="w-full rounded border border-gray-800" style="background:#050508" aria-label="String art generative canvas"></canvas>
+
+  <div class="text-center mt-2 text-xs text-gray-500" id="info"></div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H, animating = false, animId;
+
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  W = canvas.width = rect.width || 600;
+  H = canvas.height = W;
+}
+
+function draw(n, m, opacity, hue) {
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#050508';
+  ctx.fillRect(0,0,W,H);
+
+  const cx = W/2, cy = H/2;
+  const r = W * 0.44;
+
+  // Draw circle points
+  ctx.strokeStyle = `hsla(${hue},60%,60%,0.2)`;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+
+  // Draw lines
+  ctx.lineWidth = 0.8;
+  for (let i = 0; i < n; i++) {
+    const j = (i * m) % n;
+    const a1 = (i / n) * Math.PI * 2 - Math.PI/2;
+    const a2 = (j / n) * Math.PI * 2 - Math.PI/2;
+    const x1 = cx + r * Math.cos(a1);
+    const y1 = cy + r * Math.sin(a1);
+    const x2 = cx + r * Math.cos(a2);
+    const y2 = cy + r * Math.sin(a2);
+
+    // Color based on position
+    const hueShift = (i / n) * 60;
+    ctx.strokeStyle = `hsla(${(hue + hueShift) % 360},80%,65%,${opacity})`;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+
+  // Draw dots
+  ctx.fillStyle = `hsla(${hue},70%,70%,0.4)`;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 - Math.PI/2;
+    ctx.beginPath(); ctx.arc(cx + r*Math.cos(a), cy + r*Math.sin(a), 1.5, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Label
+  const shapeNames = {2:'Nephroid (m=2)',3:'Cardioid (m=3)',4:'Deltoid',51:'m=51 pattern'};
+  document.getElementById('info').textContent = `N=${n} points, m=${m} multiplier — ${shapeNames[m] || ''}`;
+}
+
+function update() {
+  const n = parseInt(document.getElementById('nPts').value);
+  const m = parseInt(document.getElementById('mMult').value);
+  const op = parseFloat(document.getElementById('lineOpacity').value);
+  const hue = parseInt(document.getElementById('colorHue').value);
+  draw(n, m, op, hue);
+}
+
+function setPreset(m) {
+  stopAnim();
+  document.getElementById('mMult').value = m;
+  document.getElementById('mVal').textContent = m;
+  update();
+}
+
+let animM = 2;
+function startAnim() {
+  if (animating) { stopAnim(); return; }
+  animating = true;
+  document.getElementById('animBtn').textContent = '■ Stop';
+  animM = 2;
+  function frame() {
+    if (!animating) return;
+    document.getElementById('mMult').value = animM;
+    document.getElementById('mVal').textContent = animM;
+    update();
+    animM = animM >= 99 ? 2 : animM + 1;
+    animId = setTimeout(frame, 150);
+  }
+  frame();
+}
+
+function stopAnim() {
+  animating = false;
+  clearTimeout(animId);
+  document.getElementById('animBtn').textContent = '▶ Animate m';
+}
+
+['nPts','mMult','lineOpacity','colorHue'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => {
+    const displays = {nPts:'nVal', mMult:'mVal', lineOpacity:'opVal', colorHue:'hueVal'};
+    document.getElementById(displays[id]).textContent = e.target.value;
+    if (animating) stopAnim();
+    update();
+  });
+});
+
+window.addEventListener('resize', () => { resize(); update(); });
+resize();
+update();
+</script>
+</body>
+</html>
